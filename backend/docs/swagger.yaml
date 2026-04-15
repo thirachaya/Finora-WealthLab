@@ -1,0 +1,42 @@
+basePath: /
+definitions:
+  main.RegisterRequest:
+    description: Returns API status
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Personal finance tracker & planner
+  title: Finora WealthLab API
+  version: "1.0"
+paths:
+  /api/register:
+    post:
+      consumes:
+      - application/json
+      description: Create new user
+      parameters:
+      - description: user info
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/main.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register user
+      tags:
+      - auth
+swagger: "2.0"
