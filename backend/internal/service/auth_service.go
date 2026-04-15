@@ -1,39 +1,50 @@
 package service
 
 import (
-	"finora-wealthlab/internal/model"
+	"errors"
+	"os"
+	"time"
+
 	"finora-wealthlab/internal/repository"
 
-	"github.com/google/uuid"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
-	UserRepo *repository.UserRepository
+	userRepo *repository.UserRepository
+	secret   string
 }
 
-func (s *AuthService) Register(email, password string) error {
-	hashed, _ := bcrypt.GenerateFromPassword([]byte(password), 10)
-
-	user := &model.User{
-		ID:       uuid.New(),
-		Email:    email,
-		Password: string(hashed),
+func NewAuthService() *AuthService {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		panic("JWT_SECRET is not set")
 	}
 
-	return s.UserRepo.Create(user)
+	return &AuthService{
+		userRepo: &repository.UserRepository{},
+		secret:   secret,
+	}
 }
 
-func (s *AuthService) Login(email, password string) (bool, error) {
-	user, err := s.UserRepo.FindByEmail(email)
+func (s *AuthService) Login(email, password string) (string, error) {
+	user, err := s.userRepo.FindByEmail(email)
 	if err != nil {
-		return false, err
+		return "", errors.New("user not found")
 	}
 
+	// check password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
-		return false, nil
+		return "", errors.New("invalid password")
 	}
 
-	return true, nil
+	// create JWT
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID.String(),
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+	})
+
+	return token.SignedString([]byte(s.secret))
 }

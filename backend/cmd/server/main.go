@@ -6,6 +6,7 @@ import (
 	"github.com/joho/godotenv"
 
 	_ "finora-wealthlab/docs"
+	"finora-wealthlab/internal/handler"
 	"finora-wealthlab/internal/service"
 	"finora-wealthlab/pkg/database"
 
@@ -19,7 +20,9 @@ import (
 // @host localhost:8080
 // @BasePath /
 func main() {
+	// load env
 	godotenv.Load()
+
 	// connect DB
 	err := database.Connect()
 	if err != nil {
@@ -28,9 +31,24 @@ func main() {
 
 	app := fiber.New()
 
-	// routes
+	// =========================
+	// INIT HANDLERS
+	// =========================
+	authHandler := &handler.AuthHandler{
+		AuthService: service.NewAuthService(),
+		UserService: service.NewUserService(),
+	}
+	userHandler := &handler.UserHandler{}
+
+	// =========================
+	// ROUTES
+	// =========================
 	app.Get("/", HealthCheck)
-	app.Post("/api/register", RegisterHandler)
+	app.Get("/api/me", userHandler.Me)
+
+	app.Post("/api/register", authHandler.Register)
+	app.Post("/api/login", authHandler.Login)
+
 	app.Get("/swagger/*", fiberSwagger.WrapHandler)
 
 	log.Fatal(app.Listen(":8080"))
@@ -46,41 +64,6 @@ func main() {
 // @Tags health
 // @Success 200 {string} string "ok"
 // @Router / [get]
-type RegisterRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 func HealthCheck(c *fiber.Ctx) error {
-	return c.SendString("API running 🚀")
-}
-
-// Register godoc
-// @Summary Register user
-// @Description Create new user
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param body body RegisterRequest true "user info"
-// @Success 200 {object} map[string]string
-// @Router /api/register [post]
-func RegisterHandler(c *fiber.Ctx) error {
-	var body RegisterRequest
-
-	if err := c.BodyParser(&body); err != nil {
-		return err
-	}
-
-	userService := service.NewUserService()
-
-	err := userService.Register(body.Email, body.Password)
-	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "register success",
-	})
+	return c.SendString("API running")
 }
