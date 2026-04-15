@@ -6,10 +6,38 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type AuthHandler struct {
-	Service *service.AuthService
+type RegisterRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type AuthHandler struct {
+	AuthService *service.AuthService
+	UserService *service.UserService
+}
+
+type MessageResponse struct {
+	Message string `json:"message"`
+}
+
+type LoginResponse struct {
+	Token string `json:"token"`
+}
+
+// Register godoc
+// @Summary Register user
+// @Description Create new user
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body RegisterRequest true "user info"
+// @Success 200 {object} MessageResponse
+// @Router /api/register [post]
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	type req struct {
 		Email    string `json:"email"`
@@ -21,14 +49,25 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return err
 	}
 
-	err := h.Service.Register(body.Email, body.Password)
+	err := h.UserService.Register(body.Email, body.Password)
 	if err != nil {
 		return err
 	}
 
-	return c.JSON(fiber.Map{"message": "registered"})
+	return c.JSON(MessageResponse{
+		Message: "registered",
+	})
 }
 
+// Login godoc
+// @Summary Login user
+// @Description Authenticate user and return JWT
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body LoginRequest true "login info"
+// @Success 200 {object} LoginResponse
+// @Router /api/login [post]
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	type req struct {
 		Email    string `json:"email"`
@@ -40,10 +79,14 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return err
 	}
 
-	ok, err := h.Service.Login(body.Email, body.Password)
-	if err != nil || !ok {
-		return c.Status(401).JSON(fiber.Map{"error": "invalid credentials"})
+	token, err := h.AuthService.Login(body.Email, body.Password)
+	if err != nil {
+		return c.Status(401).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
 
-	return c.JSON(fiber.Map{"message": "login success"})
+	return c.JSON(LoginResponse{
+		Token: token,
+	})
 }
